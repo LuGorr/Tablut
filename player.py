@@ -177,10 +177,10 @@ class tablut_client:
             True if the piece is present, False otherwise.
         """
         if self.player == "WHITE":
-            return ((self.state.board[int(piece[1])-1][self.columns[piece[0]]] == "WHITE") or
-                    (self.state.board[int(piece[1])-1][self.columns[piece[0]]] == "KING"))
+            return ((self.state.board[int(piece[1])-1][self.columns[piece[0]]] == 2) or
+                    (self.state.board[int(piece[1])-1][self.columns[piece[0]]] == 3))
         else:
-            return self.state.board[int(piece[1])-1][self.columns[piece[0]]] == "BLACK"
+            return self.state.board[int(piece[1])-1][self.columns[piece[0]]] == 1
 
     
     def show_board(self):
@@ -234,15 +234,15 @@ class tablut_client:
         # Aggiunta dei simboli sulla scacchiera
         for i in range(n):
             for j in range(n):
-                if matrix[i][j] == 'BLACK':
+                if matrix[i][j] == 1:
                     # Disegno un cerchio nero
                     circle = plt.Circle((j, n-i-1), 0.4, color='black')
                     self.ax.add_patch(circle)
-                elif matrix[i][j] == 'WHITE':
+                elif matrix[i][j] == 2:
                     # Disegno un cerchio bianco
                     circle = plt.Circle((j, n-i-1), 0.4, color='white', ec='black')
                     self.ax.add_patch(circle)
-                elif matrix[i][j] == 'KING':
+                elif matrix[i][j] == 3:
                     # Disegno un re (testo "K")
                     self.ax.text(j, n-i-1, 'K', va='center', ha='center', fontsize=20, color='black')
 
@@ -291,15 +291,15 @@ class tablut_client:
         # Aggiunta dei simboli sulla scacchiera
         for i in range(n):
             for j in range(n):
-                if matrix[i][j] == 'BLACK':
+                if matrix[i][j] == 1:
                     # Disegno un cerchio nero
                     circle = plt.Circle((j, n-i-1), 0.4, color='black')
                     self.ax.add_patch(circle)
-                elif matrix[i][j] == 'WHITE':
+                elif matrix[i][j] == 2:
                     # Disegno un cerchio bianco
                     circle = plt.Circle((j, n-i-1), 0.4, color='white', ec='black')
                     self.ax.add_patch(circle)
-                elif matrix[i][j] == 'KING':
+                elif matrix[i][j] == 3:
                     # Disegno un re (testo "K")
                     self.ax.text(j, n-i-1, 'K', va='center', ha='center', fontsize=20, color='black')
 
