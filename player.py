@@ -157,6 +157,7 @@ class tablut_client:
         Note: no wind condition added (goes on for eternity).
         """
         turn = True
+        opposite = "BLACK" if self.player == "WHITE" else "WHITE"
         while True:
             self.state = self.read("WHITE")
             print(self.state.board)
@@ -183,39 +184,42 @@ class tablut_client:
                 self.update_chessboard(self.state.board)
     
     def game_loop_agent(self):
+        print("now")
         turn = 0
         t = True
-        d = False
+        d = True
         already = 0
         tmp_tree = None
+        opponent = "BLACK" if self.player == "WHITE" else "WHITE"
         while True:
+            if turn == 0:
+                self.state = self.read(self.player)
+            print("read 1 done")
             start = time.time()
             i = 1 + already
             try:
                 while True:
-                    stop = time.time() - start > 1000000
-                    if stop:
-                        break
                     if self.state is None:
                         self.minimax.search(None, depth=i, start=start)
                         tmp_tree = copy.deepcopy(self.minimax.tree)
                     else:
-                        self.minimax.search(node(self.state.board, 0), depth=i, start=start)
+                        self.minimax.search(node(self.state.board, 0 if self.player == "WHITE" else 1), 
+                                            depth=i, start=start)
                         tmp_tree = copy.deepcopy(self.minimax.tree)
                     print("iteration: "+str(i)+", time: "+str(time.time() - start))
                     i+=1
             except:
                 pass
+            print("search done")
             self.minimax.tree = tmp_tree
             already = i - 3
-            if turn == 0:
-                self.state = self.read("WHITE")
             src, dst = self.minimax.get_move().split("-", 1)
             self.minimax.tree = next((c for c in self.minimax.tree.childs if c.move == src+"-"+dst), None) 
             src = src[::-1]
             dst = dst[::-1]
-            self.write(act.action(src, dst, "WHITE"))
-            tmp = self.read("BLACK")
+            self.write(act.action(src, dst, self.player))
+            tmp = self.read(opponent)
+            print("read 2 done")
             self.state = tmp
             if d:
                 if(t):
@@ -224,7 +228,8 @@ class tablut_client:
                 else:
                     self.update_chessboard(self.state.board)
 
-            tmp = self.read("WHITE")
+            tmp = self.read(self.player)
+            print("read 3 done")
             move = self.get_move(self.state, tmp)
             mv1, mv2 = (move.split("-", 1))
             move = str(int(mv1[1]) + 1) + mv1[0] +"-"+ str(int(mv2[1]) + 1) + mv2[0]
@@ -239,6 +244,8 @@ class tablut_client:
             self.minimax.tree = next((c for c in self.minimax.tree.childs if c.move == move), None) 
             turn += 2
             print(turn)
+    
+    
     
     def check_piece_present(self, piece):
         """
@@ -261,8 +268,12 @@ class tablut_client:
             return self.state.board[int(piece[1])-1][self.columns[piece[0]]] == 1
 
     def get_move(self, before, after):
-        src = np.argwhere((before.board==1) & (after.board==0))
-        dst = np.argwhere((before.board==0) & (after.board==1))
+        if self.player == "WHITE":
+            src = np.argwhere((before.board==1) & (after.board==0))
+            dst = np.argwhere((before.board==0) & (after.board==1))
+        else:
+            src = np.argwhere(((before.board==2) | (before.board==3)) & (after.board==0))
+            dst = np.argwhere((before.board==0) & ((after.board==2) | (after.board==3)))
         print(src,dst)
         src_lett = next((k for k, v in self.columns.items() if v == src[0][1]), None)
         dst_lett = next((k for k, v in self.columns.items() if v == dst[0][1]), None)
@@ -406,7 +417,7 @@ def conf():
     return tablut_client("WHITE", "caio", 40, "localhost")
 
 if __name__ == "__main__":
-    tab = tablut_client("WHITE", "caio", 30, "localhost")
+    tab = tablut_client("BLACK", "caio", 30, "localhost")
     tab.connect()
     tab.say_hi()
     tab.game_loop_agent()
