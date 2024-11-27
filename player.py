@@ -6,6 +6,11 @@ import struct
 import game_state as gs
 import matplotlib.pyplot as plt
 import numpy as np
+from minimax_base import minimax_base
+from node import node
+import random
+import time
+import copy
 
 class tablut_client:
     """
@@ -13,7 +18,7 @@ class tablut_client:
     No behavioral code should be put here. 
     Only GUI, basic turnation logic and server communication.
     """
-    def __init__(self, player, name, timeout, ip_address):
+    def __init__(self, player, name, timeout, ip_address ):
         """
         Initiates the instance (kind of player, player name, timeout, ip_address, port).
         
@@ -36,6 +41,7 @@ class tablut_client:
             self.port = 5800
         elif player == "BLACK":
             self.port = 5801
+        self.state = None
         self.columns = {
             'a':0,
             'b':1,
@@ -47,7 +53,18 @@ class tablut_client:
             'h':7,
             'i':8
         }
-        
+        class tmp:
+            def get(self, a):
+                return random.randint(0,10)
+        self.minimax = minimax_base(node(np.array([[0,0,0,1,1,1,0,0,0],
+                   [0,0,0,0,1,0,0,0,0],
+                   [0,0,0,0,2,0,0,0,0],
+                   [1,0,0,0,2,0,0,0,1],
+                   [1,1,2,2,3,2,2,1,1],
+                   [1,0,0,0,2,0,0,0,1],
+                   [0,0,0,0,2,0,0,0,0],
+                   [0,0,0,0,1,0,0,0,0],
+                   [0,0,0,1,1,1,0,0,0]]), 0), 2, tmp(), lambda a : sum(a)/len(a))
     def connect(self):
         """
         Creates a socket with the server's ip and port (different for white and black) then creates a connection.
@@ -85,7 +102,7 @@ class tablut_client:
             data += packet
         return data
     
-    def read(self, timeout=10000):  
+    def read(self, turn, timeout=10000):  
         """
         Waits for a message to be present in the socket and receives it.
 
@@ -101,17 +118,21 @@ class tablut_client:
         """
         # timeout in secondi
         # Attendo che il socket sia pronto a leggere
-        ready = select.select([self.socket], [], [], timeout)
+        while True:
+            ready = select.select([self.socket], [], [], timeout)
         
-        if ready[0]:  # Se il socket è pronto a leggere
-            raw = self.recvall(4)
-            if raw is None:
-                return None  # Socket chiuso o errore
+            if ready[0]:  # Se il socket è pronto a leggere
+                raw = self.recvall(4)
+                if raw is None:
+                    return None  # Socket chiuso o errore
             
-            msglen = struct.unpack('>I', raw)[0]
-            return self.recvall(msglen).decode("utf-8")
-        else:
-            return None  # Timeout, nessun dato ricevuto
+                msglen = struct.unpack('>I', raw)[0]
+                ret =  gs.game_state(self.recvall(msglen).decode("utf-8"))
+            else:
+                ret = None  # Timeout, nessun dato ricevuto
+            if ret!= None:
+                if ret.turn == turn: break
+        return ret
     
     def say_hi(self):
         """
@@ -137,7 +158,7 @@ class tablut_client:
         """
         turn = True
         while True:
-            self.state = gs.game_state(self.read())
+            self.state = self.read("WHITE")
             print(self.state.board)
             if(turn):
                 self.show_board()
@@ -152,7 +173,7 @@ class tablut_client:
                 print("no piece present!")
             dst = input("dst:")
             self.write(act.action(src, dst, "WHITE"))
-            self.state = gs.game_state(self.read())
+            self.state = self.read("BLACK")
             print(self.state.board)
             if(turn):
                 self.show_board()
@@ -160,7 +181,64 @@ class tablut_client:
             else:
                 print("update2")
                 self.update_chessboard(self.state.board)
-            
+    
+    def game_loop_agent(self):
+        turn = 0
+        t = True
+        d = False
+        already = 0
+        tmp_tree = None
+        while True:
+            start = time.time()
+            i = 1 + already
+            try:
+                while True:
+                    stop = time.time() - start > 1000000
+                    if stop:
+                        break
+                    if self.state is None:
+                        self.minimax.search(None, depth=i, start=start)
+                        tmp_tree = copy.deepcopy(self.minimax.tree)
+                    else:
+                        self.minimax.search(node(self.state.board, 0), depth=i, start=start)
+                        tmp_tree = copy.deepcopy(self.minimax.tree)
+                    print("iteration: "+str(i)+", time: "+str(time.time() - start))
+                    i+=1
+            except:
+                pass
+            self.minimax.tree = tmp_tree
+            already = i - 3
+            if turn == 0:
+                self.state = self.read("WHITE")
+            src, dst = self.minimax.get_move().split("-", 1)
+            self.minimax.tree = next((c for c in self.minimax.tree.childs if c.move == src+"-"+dst), None) 
+            src = src[::-1]
+            dst = dst[::-1]
+            self.write(act.action(src, dst, "WHITE"))
+            tmp = self.read("BLACK")
+            self.state = tmp
+            if d:
+                if(t):
+                    self.show_board()
+                    t = False
+                else:
+                    self.update_chessboard(self.state.board)
+
+            tmp = self.read("WHITE")
+            move = self.get_move(self.state, tmp)
+            mv1, mv2 = (move.split("-", 1))
+            move = str(int(mv1[1]) + 1) + mv1[0] +"-"+ str(int(mv2[1]) + 1) + mv2[0]
+            self.state = tmp
+            if d:
+                if(t):
+                    self.show_board()
+                    t = False
+                else:
+                    self.update_chessboard(self.state.board)
+
+            self.minimax.tree = next((c for c in self.minimax.tree.childs if c.move == move), None) 
+            turn += 2
+            print(turn)
     
     def check_piece_present(self, piece):
         """
@@ -182,7 +260,13 @@ class tablut_client:
         else:
             return self.state.board[int(piece[1])-1][self.columns[piece[0]]] == 1
 
-    
+    def get_move(self, before, after):
+        src = np.argwhere((before.board==1) & (after.board==0))
+        dst = np.argwhere((before.board==0) & (after.board==1))
+        print(src,dst)
+        src_lett = next((k for k, v in self.columns.items() if v == src[0][1]), None)
+        dst_lett = next((k for k, v in self.columns.items() if v == dst[0][1]), None)
+        return src_lett + str(src[0][0]) + '-' + dst_lett + str(dst[0][0])
     def show_board(self):
         """
         Initializes the GUI (use only one time).
@@ -309,7 +393,6 @@ class tablut_client:
 
         plt.draw()
         plt.pause(0.001)
-
 def conf():
     """
     Used to create a pre configured instance of tablut_client.
@@ -326,4 +409,4 @@ if __name__ == "__main__":
     tab = tablut_client("WHITE", "caio", 30, "localhost")
     tab.connect()
     tab.say_hi()
-    tab.game_loop_player()
+    tab.game_loop_agent()

@@ -1,7 +1,17 @@
 import numpy as np
 import traceback
 BOARD_SIDE = 9
-
+cols = {
+            0:'a',
+            1:'b',
+            2:'c',
+            3:'d',
+            4:'e',
+            5:'f',
+            6:'g',
+            7:'h',
+            8:'i'
+        }
 class node:
     def __init__(self, board, player):
         self.value = None
@@ -9,6 +19,7 @@ class node:
         self.player = player
         self.already_gen = 0
         self.leaf=None
+        self.move = None
     def expand(self, path, stop=False):
         nums_for_player = [1] if self.player == 1 else [2, 3]
         idxs = np.where(np.isin(self.board, nums_for_player))
@@ -32,6 +43,7 @@ class node:
                         new_board[kill[0], kill[1]] = 0
                     ret = node(new_board, (self.player + 1) % 2)
                     ret.check_leaf(path, stop)
+                    ret.move = str(piece[0]+1)+cols[piece[1]]+'-'+str(i+1)+cols[piece[1]]
                     return ret
                 elif check and skipped < self.already_gen:
                     skipped += 1
@@ -50,6 +62,7 @@ class node:
                         new_board[kill[0], kill[1]] = 0
                     ret = node(new_board, (self.player + 1) % 2)
                     ret.check_leaf(path, stop)
+                    ret.move = str(piece[0]+1)+cols[piece[1]]+'-'+str(i+1)+cols[piece[1]]
                     return ret
                 elif check and skipped < self.already_gen:
                     skipped += 1
@@ -67,6 +80,7 @@ class node:
                         new_board[kill[0], kill[1]] = 0
                     ret = node(new_board, (self.player + 1) % 2)
                     ret.check_leaf(path, stop)
+                    ret.move = str(piece[0]+1)+cols[piece[1]]+'-'+str(piece[0]+1)+cols[i]
                     return ret
                 elif check and skipped < self.already_gen:
                     skipped += 1
@@ -81,10 +95,10 @@ class node:
                     new_board[piece[0], i] = self.board[piece[0], piece[1]]
                     kill = self.check_kill(new_board,(piece[0],piece[1]))
                     if kill != None:
-                        
                         new_board[kill[0], kill[1]] = 0
                     ret = node(new_board, (self.player + 1) % 2)
                     ret.check_leaf(path, stop)
+                    ret.move = str(piece[0]+1)+cols[piece[1]]+'-'+str(piece[0]+1)+cols[i]
                     return ret
                 elif check and skipped < self.already_gen:
                     skipped += 1
@@ -182,7 +196,6 @@ class node:
                 continue
         return None
 
-                    
         
     def check_leaf(self, path, stop):
         escapes = [(0,1),(0,2),(0,6),(0,7),(8,1),(8,2),(8,6),(8,7),

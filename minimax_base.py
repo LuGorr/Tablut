@@ -2,61 +2,14 @@
 import random 
 import node
 import numpy as np
-import networkx as nx
-import matplotlib.pyplot as plt
-import pydot
+import time
 class move_tree:
-    def __init__(self, value):
+    def __init__(self, value, move=None):
         self.value = value
         self.childs = []
         self.count = 0
-    def limited_depth_dfs(self, node=None, max_depth=0, current_depth=0, parent_child_relations=None):
-        if node is None:
-            node = self
-        if node is None or current_depth > max_depth:
-            return parent_child_relations
-    
-
-        if parent_child_relations is None:
-            parent_child_relations = {}
-    
-
-        parent_child_relations[node.value] = [child.value for child in node.childs]
-    
-
-        for child in node.childs:
-            self.limited_depth_dfs(child, max_depth, current_depth + 1, parent_child_relations)
-    
-        return parent_child_relations
-    def create_graph(self, node=None, graph=None):
-        self.count+=1
-        if (self.count%10000) == 0:
-            print(self.count)
-        if graph is None:
-            graph = nx.DiGraph()
-
-        if node is None:
-            node = self
-        
-
-        for child in node.childs:
-            graph.add_edge(f"{id(node)} -> {node.value}", f"{id(child)} -> {child.value}")
-            graph = self.create_graph(child, graph)
-        
-        return graph
-    
-    def save_graph(self, filename="tree_graph.png"):
-        graph = self.create_graph()
-        print("done")
-        pydot_graph = nx.nx_pydot.to_pydot(graph)
-        print(1)
-        pydot_graph.set_graph_defaults(dpi=300)  # Migliora la qualità dell'immagine
-        pydot_graph.set_edge_defaults(minlen="2")  # Aumenta la lunghezza minima degli archi
-        pydot_graph.set_graph_defaults(splines="true")  # Usa spline curve per evitare sovrapposizioni
-        pydot_graph.set_graph_defaults(sep="+4")  # Distanza tra i nodi
-        pydot_graph.set_graph_defaults(overlap="scale")  # Evita sovrapposizioni
-        print(2)
-        pydot_graph.write_png(filename, prog="sfdp")
+        self.move = move
+        self.node = None
 
 class minimax_base:
     def __init__(self, node, depth, heuristics, weight_engine):
@@ -67,7 +20,9 @@ class minimax_base:
         self.tree = move_tree(None)
         self.count = 0
     
-    def search(self, node=None, depth=None, max_player=True, path=[], tree_src=None):
+    def search(self, node=None, depth=None, max_player=True, path=[], tree_src=None, start=float("-inf"), alpha=float('-inf'), beta=float('+inf')):
+        if (time.time() - start) > 50:
+            raise Exception
         self.count+=1
         if node is None:
             node = self.node
@@ -77,30 +32,52 @@ class minimax_base:
             depth = self.depth
         if (depth == 0):
             tree_src.value = self.heuristics.get(node.board)
+            tree_src.node = node
+            tree_src.path = path
             return tree_src.value
         if tree_src == None:
             tree_src = self.tree
+        if isinstance(node, str) and tree_src.childs == []:
+            node = tree_src.node
+            path = tree_src.path
         if max_player:
             tree_src.value = float('-inf')
-            while True:
-                child = node.expand(path)
-                if child == None:
-                    break
-                tree_src.childs.append(move_tree(None))
-                i = tree_src.childs.index(tree_src.childs[-1])
-                tree_src.value = max(tree_src.value, self.search(child, depth - 1, False, path+[child.board], tree_src.childs[i]))
+            if tree_src.childs != []:
+                for c in tree_src.childs:
+                    tree_src.value = max(tree_src.value, self.search("", depth - 1, True, "", c, start=start, alpha=alpha, beta=beta))
+            else:
+                while True:
+                    child = node.expand(path)
+                    if child == None:
+                        break
+                    tree_src.childs.append(move_tree(None, child.move))
+                    i = tree_src.childs.index(tree_src.childs[-1])
+                    tree_src.value = max(tree_src.value, self.search(child, depth - 1, False, path+[child.board], tree_src.childs[i], start=start, alpha=alpha, beta=beta))
+                    alpha = max(alpha, tree_src.value)
+                    if beta <= alpha:
+                        return alpha
 
         else:
             tree_src.value = float('inf')
-            while True:
-                child = node.expand(path)
-                if child == None:
-                    break
-                tree_src.childs.append(move_tree(None))
-                i = tree_src.childs.index(tree_src.childs[-1])
-                tree_src.value = min(tree_src.value, self.search(child, depth - 1, True, path+[child.board], tree_src.childs[i]))
+            if tree_src.childs != []:
+                for c in tree_src.childs:
+                    tree_src.value = min(tree_src.value, self.search("", depth - 1, True, "", c, start=start, alpha=alpha, beta=beta))
+            else:
+                while True:
+                    child = node.expand(path)
+                    if child == None:
+                        break
+                    tree_src.childs.append(move_tree(None, child.move))
+                    i = tree_src.childs.index(tree_src.childs[-1])
+                    tree_src.value = min(tree_src.value, self.search(child, depth -  1, True, path+[child.board], tree_src.childs[i], start=start, alpha=alpha, beta=beta))
+                    beta = min(beta, tree_src.value)
+                    if beta <= alpha:
+                        return beta
         return tree_src.value
-        
+    def get_move(self):
+        best = max(self.tree.childs, key=lambda t : t.value)
+        self.node = best
+        return best.move
 class tmp:
     def get(self, a):
         return random.randint(0,10)
