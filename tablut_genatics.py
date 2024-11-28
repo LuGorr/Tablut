@@ -1,7 +1,9 @@
 
 import pygad
-import numpy
+import subprocess
 import csv
+from evaluation import heuristic
+from player import tablut_client
 
 def play_game(solution,oppunent,indicator):
 
@@ -9,19 +11,32 @@ def play_game(solution,oppunent,indicator):
     #####################################
     if indicator == 0: #white
 
-      white_heuristics = heuristics(0, solution)
-      tablut_client(white_heuristics)
+      white_heuristics = heuristic(solution)
+      white = tablut_client("WHITE", "white", 60, "localhost", white_heuristics)
+      white.connect()
+      white.say_hi()
+      winner, moves = white.game_loop_agent()
 
-      black_heuristics = heuristics(1, oppunent)
-      tablut_client(black_heuristics)
+      black_heuristics = heuristic("BLACK", "black", 60, "localhost", oppunent)
+      black = tablut_client(black_heuristics)
+      black.connect()
+      black.say_hi()
+      black.game_loop_agent()
 
     if indicator == 1: #black
 
-      white_heuristics = heuristics(0, oppunent)
-      tablut_client(white_heuristics)
+      white_heuristics = heuristic(oppunent)
+      white = tablut_client("WHITE", "white", 60, "localhost", white_heuristics)
 
-      black_heuristics = heuristics(1, solution)
-      tablut_client(black_heuristics)
+      black_heuristics = heuristic("BLACK", "black", 60, "localhost", solution)
+      black = tablut_client(black_heuristics)
+      black.connect()
+      black.say_hi()
+      winner, black_moves = black.game_loop_agent()
+    subprocess.run("ant server")
+    
+
+    
     #####################################
 
     """
@@ -30,7 +45,7 @@ def play_game(solution,oppunent,indicator):
        1. winner = 0 or 1
        2. Number0fMoves = .....
     """
-    output = [winner, Number0fMoves]
+    output = [winner, white]
     return output
 
 

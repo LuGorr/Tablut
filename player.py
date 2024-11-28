@@ -222,13 +222,14 @@ class tablut_client:
                     self.update_chessboard(self.state.board)
 
             tmp = self.read(self.player)
+            if tmp.state.turn in ["WHITEWIN", "BLACKWIN", "DRAW"]:
+                return (turn, tmp.state.turn)
             turn+=1
             move = self.get_move(self.state, tmp)
             mv1, mv2 = (move.split("-", 1))
             move = str(int(mv1[1]) + 1) + mv1[0] +"-"+ str(int(mv2[1]) + 1) + mv2[0]
             self.state = tmp
-            if self.state.turn in ["WHITEWIN", "BLACKWIN", "DRAW"]:
-                return (turn, self.state.turn)
+            
             if d:
                 if(t):
                     self.show_board()
