@@ -12,16 +12,16 @@ class move_tree:
         self.node = None
 
 class minimax_base:
-    def __init__(self, node, depth, heuristics, weight_engine):
+    def __init__(self, node, depth, heuristics, timeout=60):
         self.node = node
         self.depth = depth
         self.heuristics = heuristics
-        self.weight_engine = weight_engine
         self.tree = move_tree(None)
         self.count = 0
+        self.timeout = timeout
     
     def search(self, node=None, depth=None, max_player=True, path=[], tree_src=None, start=float("-inf"), alpha=float('-inf'), beta=float('+inf')):
-        if (time.time() - start) > 50:
+        if (time.time() - start) > (self.timeout - 10):
             raise Exception
         self.count+=1
         if node is None:
@@ -30,13 +30,14 @@ class minimax_base:
             path = [node.board]
         if depth is None:
             depth = self.depth
+        if tree_src == None:
+            tree_src = self.tree
         if (depth == 0):
-            tree_src.value = self.heuristics.get(node.board)
+            tree_src.value = self.heuristics.get(node.board, node.player)
             tree_src.node = node
             tree_src.path = path
             return tree_src.value
-        if tree_src == None:
-            tree_src = self.tree
+        
         if isinstance(node, str) and tree_src.childs == []:
             node = tree_src.node
             path = tree_src.path

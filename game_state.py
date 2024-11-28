@@ -14,7 +14,7 @@ class game_state:
         state : json
             A json object containing a field for the board and one for the turn.
         """
-        piece_map = {'EMPTY': 0, 'BLACK': 1, 'WHITE': 2, 'KING': 3}
+        piece_map = {'EMPTY': 0, 'BLACK': 1, 'WHITE': 2, 'KING': 3, 'THRONE':0}
         data = json.loads(state)
         self.board = np.array([[piece_map[piece] for piece in row] for row in data['board']], dtype=np.int8)
         self.turn = data['turn']
