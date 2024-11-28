@@ -179,7 +179,7 @@ class tablut_client:
     def game_loop_agent(self):
         turn = 0
         t = True
-        d = True
+        d = False
         already = 0
         tmp_tree = None
         opponent = "BLACK" if self.player == "WHITE" else "WHITE"

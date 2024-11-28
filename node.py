@@ -111,7 +111,7 @@ class node:
                     (3,8),(4,8),(5,8),(4,7),(8,3),(8,4),(8,5),(7,4),(4,4)]
         if self.board[piece] != 0:
             return False
-        if (self.player == 2 or self.player == 3) and piece in fortress:
+        if (self.player == 0 or self.player == 0) and piece in fortress:
             return False
         if (self.player == 1) and (prev[0], prev[1]) not in fortress and piece in fortress[0:-2]:
             return False
@@ -212,24 +212,25 @@ class node:
 
 
 if __name__=="__main__":
-    a = node(np.array([[0,0,0,1,1,1,0,0,0],
-                   [0,0,0,0,1,0,0,0,0],
-                   [0,0,0,0,2,0,0,0,0],
+    a = node(np.array([[0,0,1,0,1,1,0,0,0],
+                   [0,0,0,2,1,0,0,0,0],
+                   [0,0,0,0,0,0,0,0,0],
                    [1,0,0,0,2,0,0,0,1],
                    [1,1,2,2,3,2,2,1,1],
                    [1,0,0,0,2,0,0,0,1],
                    [0,0,0,0,2,0,0,0,0],
                    [0,0,0,0,1,0,0,0,0],
                    [0,0,0,1,1,1,0,0,0]]), 0)
-    print(a.board)
+    childs = []
     try:
-        for i in range(10):
-            print(f"i = {i}")
-            a = a.expand([])
-            if type(a).__name__ != "NoneType":
-                print(a.board)
-            else:
-                print(type(a).__name__)
+        while True:
+            tmp = a.expand([])
+            if tmp is None:
+                for child in childs:
+                    print(child)
+                    print("")
+                break
+            childs.append(tmp.board)
     except Exception as e:
         print(e)
 

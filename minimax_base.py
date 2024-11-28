@@ -32,11 +32,17 @@ class minimax_base:
             depth = self.depth
         if tree_src == None:
             tree_src = self.tree
+        if (not isinstance(node, str)) and node.leaf in [1, 2, 3]:
+            tree_src.value = 100
+            tree_src.node = node
+            tree_src.path = path
+            return tree_src.value
         if (depth == 0):
             tree_src.value = self.heuristics.get(node.board, node.player)
             tree_src.node = node
             tree_src.path = path
             return tree_src.value
+        
         
         if isinstance(node, str) and tree_src.childs == []:
             node = tree_src.node
