@@ -4,7 +4,6 @@ import action as act
 import select
 import struct
 import game_state as gs
-import matplotlib.pyplot as plt
 import numpy as np
 from minimax_base import minimax_base
 from minimax_base import TimeException
