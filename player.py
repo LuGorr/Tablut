@@ -14,7 +14,7 @@ import time
 import copy
 import argparse
 import evaluation
-import traceback
+
 
 class tablut_client:
     """
@@ -183,12 +183,6 @@ class tablut_client:
             
             self.write(act.action(src, dst, self.player))
             turn+=1
-            if d:
-                if(t):
-                    self.show_board()
-                    t = False
-                else:
-                    self.update_chessboard(self.state.board)
             self.state = self.read(opponent)
             if self.state.turn in ["WHITEWIN", "BLACKWIN", "DRAW"]:
                 return (turn, self.state.turn)
@@ -199,43 +193,10 @@ class tablut_client:
             move = self.get_move(self.state, tmp)
             mv1, mv2 = (move.split("-", 1))
             move = str(int(mv1[1]) + 1) + mv1[0] +"-"+ str(int(mv2[1]) + 1) + mv2[0]
-            self.state = tmp
-            
-            if d:
-                if(t):
-                    self.show_board()
-                    t = False
-                else:
-                    self.update_chessboard(self.state.board)
-            
-                
-            
+            self.state = tmp   
             self.minimax.tree = next((c for c in self.minimax.tree.childs if c.move == move), None) 
             if self.minimax.tree is None:
                 self.minimax.tree = move_tree(None, move)
-
-    
-    
-    
-    def check_piece_present(self, piece):
-        """
-        Checks if a piece is present on the specified location in the board.
-
-        Parameters
-        ----------
-        piece : str
-            A string of length of 2 (mandatory), formed by a lowercase character and an integer (1-9).
-
-        Returns
-        -------
-        bool
-            True if the piece is present, False otherwise.
-        """
-        if self.player == "WHITE":
-            return ((self.state.board[int(piece[1])-1][self.columns[piece[0]]] == 2) or
-                    (self.state.board[int(piece[1])-1][self.columns[piece[0]]] == 3))
-        else:
-            return self.state.board[int(piece[1])-1][self.columns[piece[0]]] == 1
 
     def get_move(self, before, after):
         if self.player == "WHITE":
@@ -247,143 +208,7 @@ class tablut_client:
         src_lett = next((k for k, v in self.columns.items() if v == src[0][1]), None)
         dst_lett = next((k for k, v in self.columns.items() if v == dst[0][1]), None)
         return src_lett + str(src[0][0]) + '-' + dst_lett + str(dst[0][0])
-    def show_board(self):
-        """
-        Initializes the GUI (use only one time).
-        """
-        plt.ion()
-        matrix = self.state.board
-        n = len(matrix)
-        # Creazione della griglia vuota
-        fig, self.ax = plt.subplots()
-        # Creazione della scacchiera
-        self.ax.set_xticks(np.arange(0.5, n, 1))
-        self.ax.set_yticks(np.arange(0.5, n, 1))
-        self.ax.set_xticklabels([])
-        self.ax.set_yticklabels([])
-        self.ax.grid(True) #dim 9x9
-        
-        for i in range(n):
-            for j in range(n):
-                if ((i + j == 1) or (i == 0 and j == 2) or (i == 2 and j == 0) or
-                    (i == 0 and j == 6) or (i == 0 and j == 7) or (i == 1 and j == 8) or
-                    (i == 2 and j == 8) or (i == 6 and j == 0) or (i == 7 and j == 0) or
-                    (i == 6 and j == 8) or (i == 7 and j == 8) or (i == 8 and j == 1) or
-                    (i == 8 and j == 2) or (i == 8 and j == 6) or (i == 8 and j == 7)):
-                    escape = plt.Rectangle((j-0.5, n-i-1.5), 1, 1, color="cyan")
-                    self.ax.add_patch(escape)
-                if ((i == 0 and j == 3) or (i == 0 and j == 4) or (i == 0 and j == 5) or
-                    (i == 1 and j == 4) or (i == 3 and j == 0) or (i == 4 and j == 0) or
-                    (i == 5 and j == 0) or (i == 4 and j == 1) or (i == 4 and j == 7) or
-                    (i == 3 and j == 8) or (i == 4 and j == 8) or (i == 5 and j == 8) or
-                    (i == 7 and j == 4) or (i == 8 and j == 3) or (i == 8 and j == 4) or
-                    (i == 8 and j == 5)):
-                    camp = plt.Rectangle((j-0.5, n-i-1.5), 1, 1, color="grey")
-                    self.ax.add_patch(camp)
-                if (i == 4 and j == 4):
-                    castle = plt.Rectangle((j-0.5, n-i-1.5), 1, 1, color="gold")
-                    self.ax.add_patch(castle)
-                
-        # _ E E C C C E E _ #
-        # E _ _ _ C _ _ _ E #
-        # E _ _ _ _ _ _ _ E #
-        # C _ _ _ _ _ _ _ C #
-        # C C _ _ T _ _ C C #
-        # C _ _ _ _ _ _ _ C #
-        # E _ _ _ _ _ _ _ E #
-        # E _ _ _ C _ _ _ E #
-        # _ E E C C C E E _ #
-
-
-        # Aggiunta dei simboli sulla scacchiera
-        for i in range(n):
-            for j in range(n):
-                if matrix[i][j] == 1:
-                    # Disegno un cerchio nero
-                    circle = plt.Circle((j, n-i-1), 0.4, color='black')
-                    self.ax.add_patch(circle)
-                elif matrix[i][j] == 2:
-                    # Disegno un cerchio bianco
-                    circle = plt.Circle((j, n-i-1), 0.4, color='white', ec='black')
-                    self.ax.add_patch(circle)
-                elif matrix[i][j] == 3:
-                    # Disegno un re (testo "K")
-                    self.ax.text(j, n-i-1, 'K', va='center', ha='center', fontsize=20, color='black')
-
-        # Imposto i limiti della scacchiera
-        self.ax.set_xlim(-0.5, n - 0.5)
-        self.ax.set_ylim(-0.5, n - 0.5)
-
-        # Mostro la scacchiera
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.show()
-
-    def update_chessboard(self, matrix):
-        """
-        Updates the GUI.
-        """
-        self.ax.clear()  # Pulire l'asse senza chiudere la finestra
-
-        n = len(matrix)
-
-        # Creazione della scacchiera
-        self.ax.set_xticks(np.arange(0.5, n, 1))
-        self.ax.set_yticks(np.arange(0.5, n, 1))
-        self.ax.set_xticklabels([])
-        self.ax.set_yticklabels([])
-        self.ax.grid(True)
-        for i in range(n):
-            for j in range(n):
-                if ((i + j == 1) or (i == 0 and j == 2) or (i == 2 and j == 0) or
-                    (i == 0 and j == 6) or (i == 0 and j == 7) or (i == 1 and j == 8) or
-                    (i == 2 and j == 8) or (i == 6 and j == 0) or (i == 7 and j == 0) or
-                    (i == 6 and j == 8) or (i == 7 and j == 8) or (i == 8 and j == 1) or
-                    (i == 8 and j == 2) or (i == 8 and j == 6) or (i == 8 and j == 7)):
-                    escape = plt.Rectangle((j-0.5, n-i-1.5), 1, 1, color="cyan")
-                    self.ax.add_patch(escape)
-                if ((i == 0 and j == 3) or (i == 0 and j == 4) or (i == 0 and j == 5) or
-                    (i == 1 and j == 4) or (i == 3 and j == 0) or (i == 4 and j == 0) or
-                    (i == 5 and j == 0) or (i == 4 and j == 1) or (i == 4 and j == 7) or
-                    (i == 3 and j == 8) or (i == 4 and j == 8) or (i == 5 and j == 8) or
-                    (i == 7 and j == 4) or (i == 8 and j == 3) or (i == 8 and j == 4) or
-                    (i == 8 and j == 5)):
-                    camp = plt.Rectangle((j-0.5, n-i-1.5), 1, 1, color="grey")
-                    self.ax.add_patch(camp)
-                if (i == 4 and j == 4):
-                    castle = plt.Rectangle((j-0.5, n-i-1.5), 1, 1, color="gold")
-                    self.ax.add_patch(castle)
-        # Aggiunta dei simboli sulla scacchiera
-        for i in range(n):
-            for j in range(n):
-                if matrix[i][j] == 1:
-                    # Disegno un cerchio nero
-                    circle = plt.Circle((j, n-i-1), 0.4, color='black')
-                    self.ax.add_patch(circle)
-                elif matrix[i][j] == 2:
-                    # Disegno un cerchio bianco
-                    circle = plt.Circle((j, n-i-1), 0.4, color='white', ec='black')
-                    self.ax.add_patch(circle)
-                elif matrix[i][j] == 3:
-                    # Disegno un re (testo "K")
-                    self.ax.text(j, n-i-1, 'K', va='center', ha='center', fontsize=20, color='black')
-
-        # Imposto i limiti della scacchiera
-        self.ax.set_xlim(-0.5, n - 0.5)
-        self.ax.set_ylim(-0.5, n - 0.5)
-
-        plt.draw()
-        plt.pause(0.001)
-def conf():
-    """
-    Used to create a pre configured instance of tablut_client.
-    Useful if thesting from python interpreter (CLI).
-
-    Returns
-    -------
-    tablut_client
-        A pre configured tablut_client. 
-    """
-    return tablut_client("WHITE", "caio", 40, "localhost")
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -393,7 +218,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     player = args.player.upper()
     heu = [0.15 , 0.24, 1 , 0.25] if player == "BLACK" else [0.20, 0.15, 1, 1 , 0.9]
-    tab = tablut_client(player, "caio", args.timeout, args.server_ip, evaluation.heuristic(heu))
+    tab = tablut_client(player, "Tree_Planters", args.timeout, args.server_ip, evaluation.heuristic(heu))
     tab.connect()
     tab.say_hi()
     tab.game_loop_agent()

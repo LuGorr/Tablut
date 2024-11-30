@@ -1,5 +1,4 @@
 import numpy as np
-import traceback
 ############### maybe too expensive, could modify-remove parameters
 
 def no_obstacles_between(board,coordinations_1, coordinations_2):

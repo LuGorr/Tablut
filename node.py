@@ -1,5 +1,4 @@
 import numpy as np
-import traceback
 BOARD_SIDE = 9
 cols = {
             0:'a',
