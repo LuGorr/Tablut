@@ -10,19 +10,21 @@ class move_tree:
         self.count = 0
         self.move = move
         self.node = None
-
+class TimeException(Exception):
+   pass
 class minimax_base:
-    def __init__(self, node, depth, heuristics, timeout=60):
+    def __init__(self, node, depth, heuristics, timeout=60, playing_player = None):
         self.node = node
         self.depth = depth
         self.heuristics = heuristics
         self.tree = move_tree(None)
         self.count = 0
         self.timeout = timeout
+        self.playing_player = playing_player
     
     def search(self, node=None, depth=None, max_player=True, path=[], tree_src=None, start=float("-inf"), alpha=float('-inf'), beta=float('+inf')):
         if (time.time() - start) > (self.timeout - 10):
-            raise Exception
+            raise TimeException("exceeded time")
         self.count+=1
         if node is None:
             node = self.node
@@ -38,7 +40,7 @@ class minimax_base:
             tree_src.path = path
             return tree_src.value
         if (depth == 0):
-            tree_src.value = self.heuristics.get(node.board, node.player)
+            tree_src.value = self.heuristics.get(node.board, self.playing_player)
             tree_src.node = node
             tree_src.path = path
             return tree_src.value
@@ -47,11 +49,12 @@ class minimax_base:
         if isinstance(node, str) and tree_src.childs == []:
             node = tree_src.node
             path = tree_src.path
+
         if max_player:
             tree_src.value = float('-inf')
             if tree_src.childs != []:
                 for c in tree_src.childs:
-                    tree_src.value = max(tree_src.value, self.search("", depth - 1, True, "", c, start=start, alpha=alpha, beta=beta))
+                    tree_src.value = max(tree_src.value, self.search("", depth, False, "", c, start=start, alpha=alpha, beta=beta))
             else:
                 while True:
                     child = node.expand(path)
@@ -68,7 +71,7 @@ class minimax_base:
             tree_src.value = float('inf')
             if tree_src.childs != []:
                 for c in tree_src.childs:
-                    tree_src.value = min(tree_src.value, self.search("", depth - 1, True, "", c, start=start, alpha=alpha, beta=beta))
+                    tree_src.value = min(tree_src.value, self.search("", depth, True, "", c, start=start, alpha=alpha, beta=beta))
             else:
                 while True:
                     child = node.expand(path)
@@ -101,5 +104,4 @@ if __name__ == "__main__":
                    [0,0,0,1,1,1,0,0,0]]), 0)
     src = minimax_base(test_node, 3, tmp(), None)
     src.search()
-    print(src.count)
     src.tree.save_graph("tree.png")

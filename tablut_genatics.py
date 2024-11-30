@@ -4,49 +4,108 @@ import subprocess
 import csv
 from evaluation import heuristic
 from player import tablut_client
+import os
+import threading
+import socket
+import time
+import sys
+import traceback
 
+def print_debug_info():
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    print("Exception type:", exc_type)
+    print("Exception message:", exc_value)
+    print("\nStack trace:")
+    traceback.print_tb(exc_traceback)
+
+    frame = exc_traceback.tb_frame
+    print("\nLocal variables:")
+    print(frame.f_locals)
+    print("\nGlobal variables:")
+    print(frame.f_globals)
+ports = 49152
+lock = threading.Lock()
+def ant(wp, bp, server_ready_event):
+  buildfile_path = os.path.abspath("../TablutCompetition/Tablut/build.xml")
+  with open("stdout.log", "a") as stdout_file, open("stderr.log", "a") as stderr_file:
+    subprocess.Popen(["ant", "-buildfile", buildfile_path, "server", "-Dwp", str(wp), "-Dbp", str(bp)],
+                   stdout=stdout_file, stderr=stderr_file)
+  server_ready_event.set()
+
+def check_ports():
+  sock1, sock2 = (False, False)
+  with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        try:
+            sock.bind(("localhost", ports))
+            sock1 = True  # La porta è libera
+        except OSError:
+            pass
+  with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        try:
+            sock.bind(("localhost", ports+1))
+            sock2 = True  # La porta è libera
+        except OSError:
+            pass
+  return (sock1, sock2)
 def play_game(solution,oppunent,indicator):
-
-
-    #####################################
-    if indicator == 0: #white
-
+  with lock:
+    global ports
+    while True:
+      tmp = check_ports()
+      if tmp[0] and tmp[1]:
+         break
+      ports += 2
+    port1 = ports
+    ports += 2
+  port2 = port1 + 1
+  
+  server_ready_event = threading.Event()
+  #####################################
+  thread_s = threading.Thread(target=ant(port1, port2, server_ready_event))
+  thread_s.start()
+  server_ready_event.wait()
+  time.sleep(2)
+  winner = None
+  moves = None
+  if indicator == 0: #white
+    def w():
       white_heuristics = heuristic(solution)
-      white = tablut_client("WHITE", "white", 60, "localhost", white_heuristics)
+      white = tablut_client("WHITE", "white", 60, "localhost", white_heuristics, port=port1)
       white.connect()
       white.say_hi()
+      nonlocal winner, moves 
       winner, moves = white.game_loop_agent()
 
-      black_heuristics = heuristic("BLACK", "black", 60, "localhost", oppunent)
-      black = tablut_client(black_heuristics)
+
+    def b():
+      black_heuristics = heuristic(oppunent)
+      black = tablut_client("BLACK", "black", 60, "localhost", black_heuristics, port=port2)
       black.connect()
       black.say_hi()
       black.game_loop_agent()
-
-    if indicator == 1: #black
-
+  if indicator == 1: #black
+    def w():
       white_heuristics = heuristic(oppunent)
-      white = tablut_client("WHITE", "white", 60, "localhost", white_heuristics)
-
-      black_heuristics = heuristic("BLACK", "black", 60, "localhost", solution)
-      black = tablut_client(black_heuristics)
+      white = tablut_client("WHITE", "white", 60, "localhost", white_heuristics, port=port1)
+      white.connect()
+      white.say_hi()
+      white.game_loop_agent()
+    def b():
+      black_heuristics = heuristic(solution)
+      black = tablut_client("BLACK", "black", 60, "localhost", black_heuristics, port=port2)
       black.connect()
       black.say_hi()
-      winner, black_moves = black.game_loop_agent()
-    subprocess.run("ant server")
-    
+      nonlocal winner, moves
+      winner, moves = black.game_loop_agent()
+  thread_w = threading.Thread(target=w)
+  thread_w.start()
+  thread_b = threading.Thread(target=b)
+  thread_b.start()
+  thread_w.join()
+  thread_b.join()
 
-    
-    #####################################
-
-    """
-    #play the game
-    here it should return:
-       1. winner = 0 or 1
-       2. Number0fMoves = .....
-    """
-    output = [winner, white]
-    return output
+  output = [winner, moves]
+  return output
 
 
 indicator = 0 #decides the player that we want to optimize
@@ -56,9 +115,6 @@ wh_sol = [] #white player list where we save the best solution (weights) for eac
 bl_sol = [] #black player list where we save the best solution (weights) for each iterations
 
 for step in range(0,10):
-
-
-
     def fitness_func(ga_instance, solution, solution_idx):
         output = play_game(solution,oppunent,indicator) # play the game one time and return the winner and number of steps taking
         if indicator == output[0]: # if the player we are trying to optimize wins
@@ -66,7 +122,6 @@ for step in range(0,10):
         else: # if the player loses then give negative fitness
           fitness = -1
         return fitness
-
 
     num_generations = 10 # Number of generations.
     num_parents_mating = 2 # Number of solutions to be selected as parents in the mating pool.
@@ -121,3 +176,5 @@ with open("list.csv", "w", newline="") as file:
     writer = csv.writer(file)
     writer.writerow(wh_sol)
     writer.writerow(bl_sol)
+
+#play_game([1, 1, 1, 1, 1], [1, 1, 1, 1], 0)

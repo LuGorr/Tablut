@@ -1,5 +1,5 @@
 import numpy as np
-
+import traceback
 ############### maybe too expensive, could modify-remove parameters
 
 def no_obstacles_between(board,coordinations_1, coordinations_2):
@@ -44,7 +44,7 @@ def could_reach(board, coordinations_1, coordinations_2): #if pieces in coordina
         
       
     #####need to check if its a camp, 
-  
+
 class heuristic:
     
     def __init__ (self, listOfweights):
@@ -53,10 +53,9 @@ class heuristic:
     
 
     def get(self, board,player):
-        if player==0:
+        if player==1:
             #runs for black player:
             evaluation=0
-
             #take into consideration 4 parameters :
             # number  of black pawns  
             # number  of white pawns 
@@ -97,15 +96,17 @@ class heuristic:
             except:
                 pass
         
-
-            evaluation = self.weights[0]*black_pieces - self.weights[1]*white_pieces + self.weights[2]*count + self.weights[3]*attack
+            try:
+                evaluation = self.weights[0]*black_pieces - self.weights[1]*white_pieces + self.weights[2]*count + self.weights[3]*attack
+            except:
+                pass
             return evaluation
 
 
 
 
 
-        elif player==1:
+        elif player==0:
         # evaluation_white 
             #take into consinderation 
         #  of black pawns  
@@ -159,7 +160,11 @@ class heuristic:
                         danger+=1
             except:
                 pass
-            fitness_of_the_board = -self.weights[0]*black_pieces + self.weights[1]*white_pieces + self.weights[2]*paths - self.weights[3]*count - self.weights[4]*danger
+            try:
+                fitness_of_the_board = -self.weights[0]*black_pieces + self.weights[1]*white_pieces + self.weights[2]*paths - self.weights[3]*count - self.weights[4]*danger
+            except:
+                pass
+        
             return fitness_of_the_board
         
 

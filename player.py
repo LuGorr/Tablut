@@ -7,11 +7,14 @@ import game_state as gs
 import matplotlib.pyplot as plt
 import numpy as np
 from minimax_base import minimax_base
+from minimax_base import TimeException
+from minimax_base import move_tree
 from node import node
 import time
 import copy
 import argparse
 import evaluation
+import traceback
 
 class tablut_client:
     """
@@ -19,7 +22,7 @@ class tablut_client:
     No behavioral code should be put here. 
     Only GUI, basic turnation logic and server communication.
     """
-    def __init__(self, player, name, timeout, ip_address, heuristics):
+    def __init__(self, player, name, timeout, ip_address, heuristics, port=None):
         """
         Initiates the instance (kind of player, player name, timeout, ip_address, port).
         
@@ -38,10 +41,13 @@ class tablut_client:
         self.name = name + "\n"
         self.timeout = timeout
         self.server_ip = ip_address
-        if player == "WHITE":
-            self.port = 5800
-        elif player == "BLACK":
-            self.port = 5801
+        if port == None:
+            if player == "WHITE":
+                self.port = 5800
+            elif player == "BLACK":
+                self.port = 5801
+        else:
+            self.port = port
         self.state = None
         self.columns = {
             'a':0,
@@ -62,7 +68,7 @@ class tablut_client:
                    [1,0,0,0,2,0,0,0,1],
                    [0,0,0,0,2,0,0,0,0],
                    [0,0,0,0,1,0,0,0,0],
-                   [0,0,0,1,1,1,0,0,0]]), 0), 2, heuristics, self.timeout)
+                   [0,0,0,1,1,1,0,0,0]]), 0), 2, heuristics, self.timeout, playing_player= (0 if player == "WHITE" else 1))
     def connect(self):
         """
         Creates a socket with the server's ip and port (different for white and black) then creates a connection.
@@ -129,7 +135,7 @@ class tablut_client:
             else:
                 ret = None  # Timeout, nessun dato ricevuto
             if ret!= None:
-                if ret.turn == turn: break
+                break
         return ret
     
     def say_hi(self):
@@ -140,41 +146,6 @@ class tablut_client:
         """
         self.socket.sendall(struct.pack('>I', len(self.name)))
         self.socket.sendall(self.name.encode("utf-8"))
-
-    def game_loop_player(self):
-        """
-        A game loop for a human player.
-        Reads the board from server,
-        updates the GUI,
-        reads a move,
-        sends it,
-        updates the GUI,
-        reads the board after the opponent subits it's move
-        and loops back.
-
-        Note: no wind condition added (goes on for eternity).
-        """
-        turn = True
-        opposite = "BLACK" if self.player == "WHITE" else "WHITE"
-        while True:
-            self.state = self.read("WHITE")
-            if(turn):
-                self.show_board()
-                turn = False
-            else:
-                self.update_chessboard(self.state.board)
-            while True:
-                src = input("src:")
-                if self.check_piece_present(src):
-                    break
-            dst = input("dst:")
-            self.write(act.action(src, dst, "WHITE"))
-            self.state = self.read("BLACK")
-            if(turn):
-                self.show_board()
-                turn = False
-            else:
-                self.update_chessboard(self.state.board)
     
     def game_loop_agent(self):
         turn = 0
@@ -183,13 +154,13 @@ class tablut_client:
         already = 0
         tmp_tree = None
         opponent = "BLACK" if self.player == "WHITE" else "WHITE"
+        self.state = self.read("WHITE")
+        if self.player == "BLACK":
+                self.state = self.read("BLACK")
+                
         while True:
-            if turn == 0:
-                self.state = self.read(self.player)
-                if self.player == "BLACK":
-                    turn+=1
             start = time.time()
-            i = 1 + already
+            i = 1
             try:
                 while True:
                     if self.state is None:
@@ -200,31 +171,31 @@ class tablut_client:
                                             depth=i, start=start)
                         tmp_tree = copy.deepcopy(self.minimax.tree)
                     i+=1
-            except Exception as e:
+            except TimeException:
+                pass
+            except Exception:
                 pass
             self.minimax.tree = tmp_tree
-            already = i - 3
             src, dst = self.minimax.get_move().split("-", 1)
             self.minimax.tree = next((c for c in self.minimax.tree.childs if c.move == src+"-"+dst), None) 
             src = src[::-1]
             dst = dst[::-1]
+            
             self.write(act.action(src, dst, self.player))
             turn+=1
-            tmp = self.read(opponent)
-            self.state = tmp
-            if self.state.turn in ["WHITEWIN", "BLACKWIN", "DRAW"]:
-                return (turn, self.state.turn)
             if d:
                 if(t):
                     self.show_board()
                     t = False
                 else:
                     self.update_chessboard(self.state.board)
-
+            self.state = self.read(opponent)
+            if self.state.turn in ["WHITEWIN", "BLACKWIN", "DRAW"]:
+                return (turn, self.state.turn)
             tmp = self.read(self.player)
+
             if tmp.turn in ["WHITEWIN", "BLACKWIN", "DRAW"]:
-                return (turn, tmp.state.turn)
-            turn+=1
+                return (turn, tmp.turn)
             move = self.get_move(self.state, tmp)
             mv1, mv2 = (move.split("-", 1))
             move = str(int(mv1[1]) + 1) + mv1[0] +"-"+ str(int(mv2[1]) + 1) + mv2[0]
@@ -236,8 +207,13 @@ class tablut_client:
                     t = False
                 else:
                     self.update_chessboard(self.state.board)
-
+            
+                
+            
             self.minimax.tree = next((c for c in self.minimax.tree.childs if c.move == move), None) 
+            if self.minimax.tree is None:
+                self.minimax.tree = move_tree(None, move)
+
     
     
     
@@ -415,7 +391,9 @@ if __name__ == "__main__":
     parser.add_argument('--timeout', type=int, required=True)
     parser.add_argument('--server_ip', type=str, required=True)
     args = parser.parse_args()
-    tab = tablut_client(args.player.upper(), "caio", args.timeout, args.server_ip, evaluation.heuristic([1, 1, 1, 1, 1]))
+    player = args.player.upper()
+    heu = [0.15 , 0.24, 1 , 0.25] if player == "BLACK" else [0.20, 0.15, 1, 1 , 0.9]
+    tab = tablut_client(player, "caio", args.timeout, args.server_ip, evaluation.heuristic(heu))
     tab.connect()
     tab.say_hi()
     tab.game_loop_agent()
